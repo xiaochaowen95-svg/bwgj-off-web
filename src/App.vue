@@ -1,252 +1,373 @@
-<script setup>
-import { ref, onMounted } from 'vue'
-import HelloWorld from './components/HelloWorld.vue'
+﻿<script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
 import mmImages from './mmImages.js'
+import ImageOverlay from './components/ImageOverlay.vue'
+import VideoOverlay from './components/VideoOverlay.vue'
+import HomeView from './views/HomeView.vue'
+import ProcessView from './views/ProcessView.vue'
+import PriceView from './views/PriceView.vue'
+import GuizhouView from './views/GuizhouView.vue'
+import ContactView from './views/ContactView.vue'
 
-const priceSection = ref(null)
-const processSection = ref(null)
-const contactSection = ref(null)
+const currentView = ref('home')
+const enlargeImgSrc = ref('')
+const playVideoSrc = ref('')
+const playVideoPoster = ref('')
+const posterCache = ref({})
 
 const particles = ref([])
 
-onMounted(() => {
-  // 生成粒子
-  const particleCount = 50
-  for (let i = 0; i < particleCount; i++) {
-    particles.value.push({
-      id: i,
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      delay: Math.random() * 10,
-      duration: 10 + Math.random() * 20
-    })
-  }
-})
+const particleCount = 50
+for (let i = 0; i < particleCount; i++) {
+  particles.value.push({
+    id: i,
+    left: Math.random() * 100,
+    top: Math.random() * 100,
+    delay: Math.random() * 10,
+    duration: 10 + Math.random() * 20
+  })
+}
 
-function scrollTo(section) {
-  if (section && section.value) {
-    section.value.scrollIntoView({ behavior: 'smooth' })
+function getViewFromHash() {
+  if (typeof window === 'undefined') return 'home'
+  const raw = (window.location.hash || '').replace(/^#/, '')
+  const path = raw || '/'
+
+  if (path === '/' || path === '') return 'home'
+  if (path === '/price') return 'price'
+  if (path === '/process') return 'process'
+  if (path === '/contact') return 'contact'
+  if (path === '/guizhou') return 'guizhou'
+  return 'home'
+}
+
+function setHashByView(view) {
+  if (typeof window === 'undefined') return
+  const viewToHash = {
+    home: '/',
+    price: '/price',
+    process: '/process',
+    contact: '/contact',
+    guizhou: '/guizhou'
+  }
+  const nextHash = viewToHash[view] || '/'
+  const currentHash = (window.location.hash || '').replace(/^#/, '') || '/'
+  if (currentHash !== nextHash) {
+    window.location.hash = nextHash
   }
 }
 
-const priceList = [
-  { name: '小圈', price: 1300 },
-  { name: '小中', price: 1700 },
-  { name: '中圈', price: 2000 },
-  { name: '中大', price: 2500 },
-  { name: '大圈', price: 3000 },
-]
+function syncViewFromHash() {
+  const nextView = getViewFromHash()
+  if (currentView.value !== nextView) currentView.value = nextView
+  if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+}
+
+function navigate(view) {
+  currentView.value = view
+  setHashByView(view)
+  if (typeof window !== 'undefined') window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+}
+
+function handleEnlargeImage(src) {
+  enlargeImgSrc.value = src
+}
+
+function closeImageOverlay() {
+  enlargeImgSrc.value = ''
+}
+
+function handlePlayVideo(src, poster) {
+  playVideoSrc.value = src
+  playVideoPoster.value = poster || ''
+}
+
+function closeVideoOverlay() {
+  playVideoSrc.value = ''
+  playVideoPoster.value = ''
+}
+
+function handleUpdatePoster(videoUrl, dataUrl) {
+  posterCache.value = { ...posterCache.value, [videoUrl]: dataUrl }
+}
+
+onMounted(() => {
+  syncViewFromHash()
+  window.addEventListener('hashchange', syncViewFromHash)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', syncViewFromHash)
+})
 </script>
 
 <template>
-  <div>
-    <!-- 粒子背景 -->
+  <div class="app-root">
+    <div class="logo-bg"></div>
+
     <div class="particles-bg">
       <div v-for="particle in particles" :key="particle.id" class="particle" :style="{ left: particle.left + '%', top: particle.top + '%', animationDelay: particle.delay + 's', animationDuration: particle.duration + 's' }"></div>
     </div>
 
     <nav class="top-nav">
-      <button @click="scrollTo(priceSection)">价目表</button>
-      <button @click="scrollTo(processSection)">预约流程</button>
-      <button @click="scrollTo(contactSection)">联系客服</button>
+      <div class="nav-logo-container" @click="navigate('home')" title="点击返回首页">
+        <img src="https://cdn.jsdelivr.net/gh/xiaochaowen95-svg/bwgj-img/bwgj.jpg" alt="霸王搞姬 logo" class="nav-logo" />
+      </div>
+      <button type="button" class="nav-btn" :class="{ active: currentView === 'home' }" @click="navigate('home')">
+        <span class="btn-icon">🏠</span>
+        <span class="btn-text">首页</span>
+      </button>
+      <button type="button" class="nav-btn" :class="{ active: currentView === 'process' }" @click="navigate('process')">
+        <span class="btn-icon">📋</span>
+        <span class="btn-text">预约流程</span>
+      </button>
+      <button type="button" class="nav-btn" :class="{ active: currentView === 'price' }" @click="navigate('price')">
+        <span class="btn-icon">💰</span>
+        <span class="btn-text">价目表</span>
+      </button>
+      <button type="button" class="nav-btn" :class="{ active: currentView === 'guizhou' }" @click="navigate('guizhou')">
+        <span class="btn-icon">🌸</span>
+        <span class="btn-text">贵州专区</span>
+      </button>
+      <button type="button" class="nav-btn" :class="{ active: currentView === 'contact' }" @click="navigate('contact')">
+        <span class="btn-icon">📞</span>
+        <span class="btn-text">联系客服</span>
+      </button>
     </nav>
 
-    <h1>妹子图片展示（前6张）</h1>
-    <div class="img-list">
-      <div v-for="(img, idx) in mmImages.slice(0, 6)" :key="img" class="img-card">
-        <img :src="img" :alt="`妹子图片${idx+1}`" />
-        <div class="img-path">{{ img }}</div>
-      </div>
-    </div>
+    <main class="app-content">
+      <HomeView
+        v-if="currentView === 'home'"
+        :images="mmImages"
+        :poster-cache="posterCache"
+        @enlarge-image="handleEnlargeImage"
+        @play-video="handlePlayVideo"
+        @update-poster="handleUpdatePoster"
+      />
 
-    <!-- 价目表区块 -->
-    <section ref="priceSection" class="price-section">
-      <h2>价目表</h2>
-      <div class="price-cards">
-        <div class="price-card" v-for="item in priceList" :key="item.name">
-          <div class="circle">{{ item.name }}</div>
-          <div class="price">￥{{ item.price }}</div>
-        </div>
-      </div>
-      <div class="desc">所有妹子成都本地真实上门，酒店/公寓随便约，照片95%+真人，档次越高越顶</div>
-      <ul class="notice">
-        <li>⚠️ 妹妹上门后，请先核对人和照片是否一致，如差距较大请及时告知客服，千万不要先付款！</li>
-        <li>⚠️ 90分钟两次为您定好的妹妹，中途不能换人（做了一次后不能更换）。</li>
-        <li>⚠️ 有无纹身等特殊要求请提前说明。</li>
-      </ul>
-    </section>
+      <ProcessView v-else-if="currentView === 'process'" />
 
-    <!-- 预约流程区块 -->
-    <section ref="processSection" class="process-section">
-      <h2>预约流程</h2>
-      <ol class="steps">
-        <li>确定需求，先跟客服妹妹说清楚（档次/时间/地点/大概几点玩）</li>
-        <li>客服发图选人</li>
-        <li>约好时间 & 见面，选好→定时间地点→妹子准时上门，先看人确认OK再继续</li>
-        <li>满意付钱，不满意可换/退</li>
-      </ol>
-      <div class="extra">
-        <h3>额外福利</h3>
-        <ul>
-          <li>🏙️ 三环内上门免车费</li>
-          <li>🛣️ 三环外路费实报实销（提前讲好）</li>
-          <li>🎁 每日首单 -100元</li>
-          <li>🎁 推荐朋友消费成功返你100元（截图核销）</li>
-        </ul>
-        <div class="special">💡 特殊服务说明：三通、SM、无冒等特服需 +500</div>
-        <div class="pay">💰 付款说明：无任何定金！见面满意付！预定除外！三环内免费上门，绕城外需实报车费（先付）。首次下单外出都需先付100定金，三环外付车费可免定金，自己开车去妹妹那里不需要定金。</div>
-      </div>
-    </section>
+      <PriceView v-else-if="currentView === 'price'" />
 
-    <!-- 联系客服区块 -->
-    <section ref="contactSection" class="contact-section">
-      <h2>联系客服</h2>
-      <div class="contact-block">
-        <div>Telegram频道：<a href="https://t.me/+y4ehd5vU9LM3Y2Q1" target="_blank">https://t.me/+y4ehd5vU9LM3Y2Q1</a></div>
-        <div>妹子相册：<a href="http://1261554.apps3.mui139.pics/" target="_blank">http://1261554.apps3.mui139.pics/</a> 密码：888</div>
-        <div>如需人工推荐或有疑问，直接TG联系或留言！</div>
-      </div>
-    </section>
+      <GuizhouView
+        v-else-if="currentView === 'guizhou'"
+        @enlarge-image="handleEnlargeImage"
+        @play-video="handlePlayVideo"
+      />
 
-    <HelloWorld msg="Vite + Vue" />
+      <ContactView v-else-if="currentView === 'contact'" />
+    </main>
+
+    <ImageOverlay
+      :image-src="enlargeImgSrc"
+      @close="closeImageOverlay"
+    />
+
+    <VideoOverlay
+      :video-src="playVideoSrc"
+      :video-poster="playVideoPoster"
+      @close="closeVideoOverlay"
+    />
   </div>
 </template>
 
-<style scoped>
-.top-nav {
-  display: flex;
-  gap: 24px;
-  justify-content: center;
-  margin-bottom: 32px;
-  background: #181818;
-  padding: 18px 0 10px 0;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px #0003;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-.top-nav button {
-  background: #FFD700;
-  color: #222;
-  border: none;
-  border-radius: 6px;
-  font-size: 18px;
-  font-weight: bold;
-  padding: 8px 24px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.top-nav button:hover {
-  background: #ffe066;
-}
-.img-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  justify-content: center;
-}
-.img-card {
-  width: 180px;
-  background: #181818;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px #0003;
-  margin-bottom: 8px;
-}
-.img-card img {
-  width: 100%;
-  display: block;
-  border-radius: 8px 8px 0 0;
-}
-.img-path {
-  color: #FFD700;
-  font-size: 14px;
-  padding: 4px 8px 8px 8px;
-  word-break: break-all;
-}
-.price-section, .process-section, .contact-section {
-  margin: 48px auto 0 auto;
-  padding: 32px;
-  background: #222;
-  border-radius: 16px;
-  color: #FFD700;
-  max-width: 700px;
-  box-shadow: 0 4px 24px #0005;
-}
-.price-section h2, .process-section h2, .contact-section h2 {
-  font-size: 2em;
-  color: #FFD700;
-  margin-bottom: 24px;
-  text-align: center;
-}
-.price-cards {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-.price-card {
-  background: #111;
-  border-radius: 12px;
-  flex: 1;
-  padding: 18px 0 10px 0;
-  text-align: center;
-  box-shadow: 0 2px 8px #0003;
-  margin: 0 2px;
-}
-.circle {
-  width: 48px;
-  height: 48px;
-  background: #FFD700;
-  color: #222;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2em;
-  font-weight: bold;
-  margin: 0 auto 8px auto;
-}
-.price {
-  font-size: 1.5em;
-  color: #FFD700;
-  font-weight: bold;
-}
-.desc {
-  color: #fff;
-  margin: 18px 0 10px 0;
-  text-align: center;
-}
-.steps {
-  color: #fff;
-  padding-left: 20px;
-  margin-bottom: 0;
-}
-.steps li {
-  margin-bottom: 8px;
-  font-size: 1.1em;
-}
-.contact-block {
-  color: #fff;
-  font-size: 1.1em;
-  text-align: center;
-  margin-top: 12px;
-}
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* 粒子背景样式 */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 50%, #16213e 100%);
+  background-attachment: fixed;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+.app-root {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  padding-top: 12px;
+  padding-bottom: 24px;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.top-nav {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(24, 24, 24, 0.95) 0%, rgba(40, 40, 40, 0.95) 100%);
+  padding: 24px 48px;
+  border-radius: 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 3000;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.top-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-logo-container {
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.nav-logo-container:hover {
+  transform: scale(1.08);
+}
+
+.nav-logo-container:active {
+  transform: scale(0.95);
+}
+
+.nav-logo {
+  height: 45px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.nav-logo-container:hover .nav-logo {
+  box-shadow: 0 4px 16px rgba(255, 215, 0, 0.5);
+}
+
+.nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(145deg, #FFD700 0%, #FFA500 100%);
+  color: #1a1a1a;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 16px 32px;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+  min-width: 140px;
+}
+
+.nav-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transition: left 0.5s;
+}
+
+.nav-btn:hover::before {
+  left: 100%;
+}
+
+.nav-btn:hover {
+  transform: translateY(-4px) scale(1.08);
+  box-shadow: 0 12px 35px rgba(255, 215, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.3);
+  background: linear-gradient(145deg, #FFE55C 0%, #FFB84D 100%);
+}
+
+.nav-btn:active {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+}
+
+.nav-btn.active {
+  background: linear-gradient(145deg, #FF6B6B 0%, #FF8E53 100%);
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4), inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.btn-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  animation: iconFloat 2s ease-in-out infinite;
+}
+
+.btn-text {
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes iconFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.logo-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('https://cdn.jsdelivr.net/gh/xiaochaowen95-svg/bwgj-img/bwgj.jpg');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.08;
+  z-index: 0;
+  pointer-events: none;
+}
+
 .particles-bg {
   position: fixed;
   top: 0;
@@ -254,7 +375,7 @@ const priceList = [
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: -1;
+  z-index: 1;
   overflow: hidden;
 }
 
@@ -282,6 +403,93 @@ const priceList = [
   100% {
     transform: translateY(-100vh) rotate(360deg);
     opacity: 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .top-nav {
+    gap: 20px;
+    padding: 20px 24px;
+  }
+  
+  .nav-btn {
+    min-width: 110px;
+    padding: 14px 24px;
+  }
+  
+  .btn-icon {
+    font-size: 24px;
+  }
+  
+  .btn-text {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-content {
+    padding-top: 8px;
+    padding-bottom: 20px;
+  }
+
+  .top-nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 8px 6px;
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-logo-container {
+    margin-right: 4px;
+    flex-shrink: 0;
+  }
+
+  .nav-logo {
+    height: 32px;
+  }
+  
+  .nav-btn {
+    flex: 0 0 auto;
+    min-width: auto;
+    padding: 8px 10px;
+    gap: 2px;
+    border-radius: 10px;
+  }
+  
+  .btn-icon {
+    font-size: 16px;
+  }
+  
+  .btn-text {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-nav {
+    gap: 4px;
+    padding: 6px 4px;
+  }
+
+  .nav-logo {
+    height: 28px;
+  }
+
+  .nav-btn {
+    padding: 6px 8px;
+    border-radius: 8px;
+  }
+
+  .btn-icon {
+    font-size: 14px;
+  }
+
+  .btn-text {
+    font-size: 9px;
   }
 }
 </style>
