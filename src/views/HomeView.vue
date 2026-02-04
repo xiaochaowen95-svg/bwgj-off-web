@@ -2,8 +2,8 @@
   <div class="home-view">
     <section class="intro-section">
       <h1>欢迎光临</h1>
-      <div class="intro-subtitle">成都区域优质妹妹展示平台</div>
-      <div class="intro-desc">左右滑动查看更多妹妹图片，点击可放大预览 📸</div>
+      <div class="intro-subtitle">每天兼职学生，网红，模特上百位，选妃私聊客户。</div>
+      <div class="intro-desc">部分展示 👇 左右滑动查看更多，点击可放大预览 📸</div>
     </section>
 
     <section class="carousel-section" @wheel="onWheel">
